@@ -1,0 +1,165 @@
+<div style="
+  font-family: 'Segoe UI', Arial, sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: #f1f3f8;
+  padding: 20px;
+">
+
+  <!-- Header -->
+  <div style="
+    background: linear-gradient(135deg, #4a6cf7, #6f8cff);
+    padding: 22px;
+    text-align: center;
+    color: #ffffff;
+    border-radius: 10px 10px 0 0;
+  ">
+    <h1 style="
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    ">
+      🎉 Registration Confirmed!
+    </h1>
+    <p style="
+      margin-top: 6px;
+      font-size: 14px;
+      opacity: 0.95;
+    ">
+      Welcome to Chakravyuh 2.0
+    </p>
+  </div>
+
+  <!-- Body -->
+  <div style="
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+  ">
+
+    <p style="font-size: 15px; color: #333;">
+      Hello <strong>
+        <%= fullName %>
+      </strong>,
+    </p>
+
+    <p style="
+      font-size: 15px;
+      color: #444;
+      line-height: 1.6;
+    ">
+      Thank you for registering for
+      <strong style="color: #4a6cf7;">
+        <%= event %>
+      </strong>
+      at <strong>Chakravyuh 2.0</strong>.
+    </p>
+
+    <!-- Registration Details Card -->
+    <div style="
+      background-color: #f9fafc;
+      padding: 18px;
+      border: 1px solid #e1e4ea;
+      margin: 22px 0;
+      border-radius: 8px;
+    ">
+      <h3 style="
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 16px;
+        color: #2c3e50;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 6px;
+      ">
+        📄 Registration Details
+      </h3>
+
+      <p style="margin: 6px 0; font-size: 14px;">
+        <strong>Registration ID:</strong>
+        <%= registrationId %>
+      </p>
+      <p style="margin: 6px 0; font-size: 14px;">
+        <strong>Event:</strong>
+        <%= event %>
+      </p>
+      <p style="margin: 6px 0; font-size: 14px;">
+        <strong>Date:</strong>
+        <%= new Date().toLocaleDateString() %>
+      </p>
+    </div>
+
+    <!-- Payment Section -->
+    <% if (paymentRequired && paymentLink) { %>
+      <div style="
+        text-align: center;
+        margin: 30px 0 20px;
+      ">
+        <a href="<%= paymentLink %>" style="
+            display: inline-block;
+            padding: 12px 26px;
+            background: linear-gradient(135deg, #4a6cf7, #6f8cff);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(74,108,247,0.4);
+          ">
+          💳 Complete Payment
+        </a>
+      </div>
+
+      <p style="
+        font-size: 14px;
+        color: #b00020;
+        text-align: center;
+      ">
+        Your registration will be fully confirmed after payment is completed.
+      </p>
+      <% } %>
+
+    <p style="
+      font-size: 14px;
+      color: #444;
+      margin-top: 25px;
+    ">
+      If you have any questions, feel free to contact us at
+      <a href="mailto:chakravyuh@sveri.ac.in" style="
+      color: #4a6cf7;
+      text-decoration: none;
+      font-weight: 600;
+    ">
+      chakravyuh@sveri.ac.in
+    </a>
+    or call us at
+    <a href="tel:8459558948" style="
+      color: #4a6cf7;
+      text-decoration: none;
+      font-weight: 600;
+    ">
+      8459558948
+    </a>
+    </p>
+
+    <p style="font-size: 14px; color: #444;">
+      Best regards,<br>
+      <strong>Team Chakravyuh</strong>
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div style="
+    margin-top: 15px;
+    padding-top: 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #777;
+  ">
+    <p style="margin: 0;">
+      © <%= year %> Chakravyuh 2.0. All rights reserved.
+    </p>
+  </div>
+
+</div>
