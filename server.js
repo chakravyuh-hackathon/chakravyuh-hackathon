@@ -112,7 +112,11 @@ app.use((err, req, res, next) => {
 });
 
 const connectMongo = async () => {
+    if (!process.env.MONGO_URI) {
+        throw new Error('Missing MONGO_URI environment variable');
+    }
     if (mongoose.connection.readyState === 1) return;
+    if (mongoose.connection.readyState === 2) return;
     await mongoose.connect(process.env.MONGO_URI, {
         // useNewUrlParser: true, // Deprecated in newer mongoose versions but kept for compatibility references
         // useUnifiedTopology: true
