@@ -29,7 +29,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        return res.status(204).end();
+    }
+    next();
+});
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ extended: true, limit: '200mb' }));
 
@@ -117,25 +124,50 @@ const connectMongo = async () => {
     }
     if (mongoose.connection.readyState === 1) return;
     if (mongoose.connection.readyState === 2) return;
-    await mongoose.connect(process.env.MONGO_URI, {
-        // useNewUrlParser: true, // Deprecated in newer mongoose versions but kept for compatibility references
-        // useUnifiedTopology: true
-    });
-    console.log('MongoDB Connected');
+    
+    try {
+        await mongoose.connect(process.env.MONGO_URI, {
+            // useNewUrlParser: true, // Deprecated in newer mongoose versions but kept for compatibility references
+            // useUnifiedTopology: true
+        });
+        console.log('MongoDB Connected');
+    } catch (error) {
+        console.error('MongoDB connection failed:', error.message);
+        
+        // In development, provide a helpful error message
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('\n💡 TROUBLESHOOTING TIPS:');
+            console.log('1. Check your internet connection');
+            console.log('2. Verify MONGO_URI in .env file');
+            console.log('3. Make sure your IP is whitelisted in MongoDB Atlas');
+            console.log('4. Try using a local MongoDB instance\n');
+        }
+        
+        throw error;
+    }
 };
 
 if (require.main === module) {
+    // Try to connect to MongoDB, but start server anyway for testing
     connectMongo()
         .then(() => {
             // Start server
             const PORT = process.env.PORT || 5000;
             app.listen(PORT, () => {
                 console.log(`Server running on port ${PORT}`);
+                console.log('MongoDB connected and ready');
             });
         })
         .catch(err => {
-            console.error('MongoDB connection error:', err);
-            process.exit(1);
+            console.error('MongoDB connection failed:', err.message);
+            console.log('\n⚠️  Starting server without MongoDB connection...');
+            console.log('API endpoints will return database errors, but server is running for testing');
+            
+            // Start server anyway for testing
+            const PORT = process.env.PORT || 5000;
+            app.listen(PORT, () => {
+                console.log(`Server running on port ${PORT} (MongoDB disconnected)`);
+            });
         });
 }
 

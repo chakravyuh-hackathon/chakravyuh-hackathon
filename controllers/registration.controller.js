@@ -1,8 +1,17 @@
 const Registration = require('../models/Registration');
 const sendEmail = require('../utils/sendEmail');
+const mongoose = require('mongoose');
 
 exports.createRegistration = async (req, res, next) => {
     try {
+        // Check if MongoDB is connected
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({
+                success: false,
+                message: 'Database unavailable. Please try again later.'
+            });
+        }
+
         if (!req.body) {
             return res.status(400).json({
                 success: false,
