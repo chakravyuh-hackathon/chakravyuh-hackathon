@@ -106,8 +106,7 @@
             font-size: 15px;
             font-weight: 600;
             box-shadow: 0 4px 12px rgba(74,108,247,0.4);
-            transition: all 0.2s ease;
-          " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(74,108,247,0.5)'" onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 12px rgba(74,108,247,0.4)'">
+          ">
           💳 Complete Payment
         </a>
       </div>
@@ -119,29 +118,6 @@
       ">
         Your registration will be fully confirmed after payment is completed.
       </p>
-      
-      <script>
-        // Immediate redirect when payment link is clicked
-        document.addEventListener('DOMContentLoaded', function() {
-          const paymentLink = document.querySelector('a[href*="payment"]');
-          if (paymentLink) {
-            paymentLink.addEventListener('click', function(e) {
-              e.preventDefault();
-              
-              const originalText = this.innerHTML;
-              this.innerHTML = '⏳ Redirecting to Payment...';
-              this.style.opacity = '0.8';
-              this.style.cursor = 'wait';
-              
-              // Prevent multiple clicks
-              this.style.pointerEvents = 'none';
-              
-              // Immediate redirect to payment link
-              window.location.href = this.href;
-            });
-          }
-        });
-      </script>
       <% } %>
 
     <p style="
