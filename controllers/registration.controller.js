@@ -8,6 +8,15 @@ const asTrimmedString = (value) => {
     return String(value).trim();
 };
 
+const getFrontendBaseUrl = () => {
+    const envValue = (process.env.FRONTEND_URL || '').toString();
+    const first = envValue
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean)[0];
+    return (first || 'http://localhost:3000').replace(/\/+$/, '');
+};
+
 exports.createRegistration = async (req, res, next) => {
     try {
         // Check if MongoDB is connected
@@ -195,7 +204,7 @@ exports.createRegistration = async (req, res, next) => {
 
         // Send confirmation email
         try {
-            const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+            const frontendUrl = getFrontendBaseUrl();
             const paymentLink = `${frontendUrl}/payment/${registration._id}`;
             await sendEmail({
                 to: emailValue,
