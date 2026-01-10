@@ -199,7 +199,7 @@ exports.createRegistration = async (req, res, next) => {
             const paymentLink = `${frontendUrl}/payment/${registration._id}`;
             await sendEmail({
                 to: emailValue,
-                subject: `Chakravyuh 2.0 - Registration Confirmation (${registrationId})`,
+                subject: `Chakravyuh 2.0 - Registration Processing (${registrationId})`,
                 template: 'registrationConfirmation',
                 context: {
                     fullName: fullNameValue,

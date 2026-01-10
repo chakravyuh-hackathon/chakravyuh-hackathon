@@ -20,7 +20,7 @@
       font-weight: 700;
       letter-spacing: 0.4px;
     ">
-      🎉 Registration Confirmed!
+      🎉 Registration Processing!
     </h1>
     <p style="
       margin-top: 6px;
@@ -121,28 +121,23 @@
       </p>
       
       <script>
-        // Add loading state when payment link is clicked
+        // Immediate redirect when payment link is clicked
         document.addEventListener('DOMContentLoaded', function() {
           const paymentLink = document.querySelector('a[href*="payment"]');
           if (paymentLink) {
             paymentLink.addEventListener('click', function(e) {
+              e.preventDefault();
+              
               const originalText = this.innerHTML;
-              this.innerHTML = '⏳ Loading Payment...';
+              this.innerHTML = '⏳ Redirecting to Payment...';
               this.style.opacity = '0.8';
               this.style.cursor = 'wait';
               
               // Prevent multiple clicks
               this.style.pointerEvents = 'none';
               
-              // If navigation takes too long, restore the button
-              setTimeout(() => {
-                if (document.body.contains(this)) {
-                  this.innerHTML = originalText;
-                  this.style.opacity = '1';
-                  this.style.cursor = 'pointer';
-                  this.style.pointerEvents = 'auto';
-                }
-              }, 5000);
+              // Immediate redirect to payment link
+              window.location.href = this.href;
             });
           }
         });
