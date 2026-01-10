@@ -3,8 +3,14 @@ const emailTemplates = require('./emailTemplates');
 
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
+    port: Number(process.env.EMAIL_PORT) || 587,
     secure: process.env.EMAIL_SECURE === 'true',
+    pool: true,
+    maxConnections: Number(process.env.EMAIL_MAX_CONNECTIONS) || 3,
+    maxMessages: Number(process.env.EMAIL_MAX_MESSAGES) || 100,
+    connectionTimeout: Number(process.env.EMAIL_CONNECTION_TIMEOUT_MS) || 10000,
+    greetingTimeout: Number(process.env.EMAIL_GREETING_TIMEOUT_MS) || 10000,
+    socketTimeout: Number(process.env.EMAIL_SOCKET_TIMEOUT_MS) || 20000,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS

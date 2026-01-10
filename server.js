@@ -16,11 +16,21 @@ const allowedOrigins = (process.env.FRONTEND_URL || '')
     .map((v) => v.trim())
     .filter(Boolean);
 
+const normalizeOrigin = (value) => {
+    if (!value) return value;
+    const trimmed = String(value).trim();
+    return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
+};
+
+const normalizedAllowedOrigins = allowedOrigins.map(normalizeOrigin);
+
 const corsOptions = {
     origin: (origin, cb) => {
         if (!origin) return cb(null, true);
-        if (allowedOrigins.length === 0) return cb(null, true);
-        if (allowedOrigins.includes(origin)) return cb(null, true);
+        if (normalizedAllowedOrigins.length === 0) return cb(null, true);
+        if (normalizedAllowedOrigins.includes('*')) return cb(null, true);
+        const normalizedOrigin = normalizeOrigin(origin);
+        if (normalizedAllowedOrigins.includes(normalizedOrigin)) return cb(null, true);
         return cb(null, false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -126,10 +136,18 @@ const connectMongo = async () => {
     if (mongoose.connection.readyState === 2) return;
     
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
-            // useNewUrlParser: true, // Deprecated in newer mongoose versions but kept for compatibility references
-            // useUnifiedTopology: true
-        });
+        const connectOptions = {};
+        try {
+            const parsed = new URL(process.env.MONGO_URI);
+            const dbFromPath = (parsed.pathname || '').replace('/', '').trim();
+            if (!dbFromPath) {
+                connectOptions.dbName = (process.env.MONGO_DB_NAME || 'chakravyuh').trim();
+            }
+        } catch {
+            // Ignore URL parsing errors and fall back to default mongoose behavior
+        }
+
+        await mongoose.connect(process.env.MONGO_URI, connectOptions);
         console.log('MongoDB Connected');
     } catch (error) {
         console.error('MongoDB connection failed:', error.message);

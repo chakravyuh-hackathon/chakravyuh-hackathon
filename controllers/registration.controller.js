@@ -2,6 +2,12 @@ const Registration = require('../models/Registration');
 const sendEmail = require('../utils/sendEmail');
 const mongoose = require('mongoose');
 
+const asTrimmedString = (value) => {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'string') return value.trim();
+    return String(value).trim();
+};
+
 exports.createRegistration = async (req, res, next) => {
     try {
         // Check if MongoDB is connected
@@ -31,6 +37,19 @@ exports.createRegistration = async (req, res, next) => {
             teamName
         } = req.body;
 
+        const fullNameValue = asTrimmedString(fullName);
+        const emailValue = asTrimmedString(email);
+        const phoneValue = asTrimmedString(phone);
+        const collegeValue = asTrimmedString(college);
+        const eventValue = asTrimmedString(event);
+        const teamNameValue = asTrimmedString(teamName);
+
+        req.body.fullName = fullNameValue;
+        req.body.email = emailValue;
+        req.body.phone = phoneValue;
+        req.body.college = collegeValue;
+        req.body.event = eventValue;
+
         let teamMembers = req.body.teamMembers;
         if (typeof teamMembers === 'string') {
             try {
@@ -46,7 +65,7 @@ exports.createRegistration = async (req, res, next) => {
         const normalizedIsTeam = typeof isTeam === 'string' ? isTeam === 'true' : Boolean(isTeam);
 
         // Validation
-        if (!fullName?.trim() || !email?.trim() || !phone?.trim() || !college?.trim() || !event) {
+        if (!fullNameValue || !emailValue || !phoneValue || !collegeValue || !eventValue) {
             return res.status(400).json({
                 success: false,
                 message: 'All required fields must be filled'
@@ -55,7 +74,7 @@ exports.createRegistration = async (req, res, next) => {
 
         // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(emailValue)) {
             return res.status(400).json({
                 success: false,
                 message: 'Please provide a valid email address'
@@ -64,7 +83,7 @@ exports.createRegistration = async (req, res, next) => {
 
         // Phone validation (10 digits)
         const phoneRegex = /^[6-9]\d{9}$/;
-        if (!phoneRegex.test(phone)) {
+        if (!phoneRegex.test(phoneValue)) {
             return res.status(400).json({
                 success: false,
                 message: 'Please provide a valid 10-digit Indian phone number'
@@ -109,27 +128,36 @@ exports.createRegistration = async (req, res, next) => {
 
         // Team validation
         if (normalizedIsTeam) {
-            if (!teamName?.trim() || !Array.isArray(teamMembers) || teamMembers.length < 1) {
+            if (!teamNameValue || !Array.isArray(teamMembers) || teamMembers.length < 1) {
                 return res.status(400).json({
                     success: false,
                     message: 'Team name and at least 1 team member is required'
                 });
             }
 
+            req.body.teamName = teamNameValue;
+
             // Validate team members
             for (const member of teamMembers) {
-                if (!member.name?.trim() || !member.email?.trim() || !member.phone?.trim()) {
+                const memberName = asTrimmedString(member?.name);
+                const memberEmail = asTrimmedString(member?.email);
+                const memberPhone = asTrimmedString(member?.phone);
+                if (!memberName || !memberEmail || !memberPhone) {
                     return res.status(400).json({
                         success: false,
                         message: 'Each team member must have name, email, and phone'
                     });
                 }
-                if (!emailRegex.test(member.email)) {
+                if (!emailRegex.test(memberEmail)) {
                     return res.status(400).json({
                         success: false,
-                        message: `Invalid email format for team member: ${member.name}`
+                        message: `Invalid email format for team member: ${memberName}`
                     });
                 }
+
+                member.name = memberName;
+                member.email = memberEmail;
+                member.phone = memberPhone;
             }
 
             req.body.teamMembers = teamMembers;
@@ -143,8 +171,8 @@ exports.createRegistration = async (req, res, next) => {
 
         // Check for existing registration
         const existing = await Registration.findOne({
-            email: req.body.email,
-            event: req.body.event
+            email: emailValue,
+            event: eventValue
         });
 
         if (existing) {
@@ -170,13 +198,13 @@ exports.createRegistration = async (req, res, next) => {
             const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
             const paymentLink = `${frontendUrl}/payment/${registration._id}`;
             await sendEmail({
-                to: email,
+                to: emailValue,
                 subject: `Chakravyuh 2.0 - Registration Confirmation (${registrationId})`,
                 template: 'registrationConfirmation',
                 context: {
-                    fullName,
-                    email,
-                    event,
+                    fullName: fullNameValue,
+                    email: emailValue,
+                    event: eventValue,
                     registrationId,
                     paymentRequired: true,
                     paymentLink,
@@ -198,6 +226,12 @@ exports.createRegistration = async (req, res, next) => {
         });
 
     } catch (error) {
+        console.error('createRegistration error:', {
+            message: error?.message,
+            name: error?.name,
+            code: error?.code,
+            stack: error?.stack
+        });
         next(error);
     }
 };

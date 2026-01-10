@@ -178,7 +178,7 @@ exports.verifyPayment = async (req, res, next) => {
             // Collect all emails (registrant + team members)
             const recipients = [
                 { name: updatedRegistration.fullName, email: updatedRegistration.email },
-                ...updatedRegistration.teamMembers.map(m => ({ name: m.name, email: m.email }))
+                ...(updatedRegistration.teamMembers || []).map(m => ({ name: m.name, email: m.email }))
             ];
 
             // Remove duplicates based on email
@@ -195,23 +195,30 @@ exports.verifyPayment = async (req, res, next) => {
                 cid: 'qrcode' // Content-ID for embedding in the email template
             }];
 
-            // Send email to each recipient
-            for (const recipient of uniqueRecipients) {
-                await sendEmail({
-                    to: recipient.email,
-                    subject: `Chakravyuh 2.0 - Payment Confirmed (${updatedRegistration.registrationId})`,
-                    template: 'paymentConfirmation',
-                    context: {
-                        fullName: recipient.name,
-                        event: updatedRegistration.event,
-                        registrationId: updatedRegistration.registrationId,
-                        teamName: updatedRegistration.isTeam ? (updatedRegistration.teamName || '') : '',
-                        paymentId: razorpay_payment_id,
-                        qrCode: 'cid:qrcode' // Use CID reference
-                    },
-                    attachments
-                });
-            }
+            setImmediate(async () => {
+                try {
+                    await Promise.allSettled(
+                        uniqueRecipients.map((recipient) =>
+                            sendEmail({
+                                to: recipient.email,
+                                subject: `Chakravyuh 2.0 - Payment Confirmed (${updatedRegistration.registrationId})`,
+                                template: 'paymentConfirmation',
+                                context: {
+                                    fullName: recipient.name,
+                                    event: updatedRegistration.event,
+                                    registrationId: updatedRegistration.registrationId,
+                                    teamName: updatedRegistration.isTeam ? (updatedRegistration.teamName || '') : '',
+                                    paymentId: razorpay_payment_id,
+                                    qrCode: 'cid:qrcode'
+                                },
+                                attachments
+                            })
+                        )
+                    );
+                } catch (emailError) {
+                    console.error('Failed to send payment confirmation email:', emailError);
+                }
+            });
 
         } catch (emailError) {
             console.error('Failed to send payment confirmation email:', emailError);

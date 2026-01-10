@@ -2,6 +2,7 @@ const express = require('express');
 
 const {
     setupAdmin,
+    getSetupStatus,
     loginAdmin,
     getMe,
     listRegistrations,
@@ -13,6 +14,7 @@ const { protect, isAdmin } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
+router.get('/setup', getSetupStatus);
 router.post('/setup', express.json(), setupAdmin);
 router.post('/login', express.json(), loginAdmin);
 router.get('/me', protect, isAdmin, getMe);

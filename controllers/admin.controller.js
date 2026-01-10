@@ -6,14 +6,45 @@ const User = require('../models/User');
 const Registration = require('../models/Registration');
 
 const signToken = (userId) => {
+    if (!process.env.JWT_SECRET) {
+        throw new Error('Missing JWT_SECRET environment variable');
+    }
     return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE || '30d'
     });
 };
 
+exports.getSetupStatus = async (req, res, next) => {
+    try {
+        const adminCount = await User.countDocuments({ role: 'admin' });
+        res.json({
+            success: true,
+            adminExists: adminCount > 0,
+            setupKeyRequired: Boolean(process.env.ADMIN_SETUP_KEY)
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.setupAdmin = async (req, res, next) => {
     try {
         const { name, email, password, setupKey } = req.body || {};
+
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({
+                success: false,
+                message: 'Missing JWT_SECRET environment variable'
+            });
+        }
+
+        const existingAdminCount = await User.countDocuments({ role: 'admin' });
+        if (existingAdminCount > 0) {
+            return res.status(409).json({
+                success: false,
+                message: 'Admin already exists'
+            });
+        }
 
         if (process.env.ADMIN_SETUP_KEY) {
             if (!setupKey) {
@@ -28,14 +59,6 @@ exports.setupAdmin = async (req, res, next) => {
                     message: 'Invalid setup key'
                 });
             }
-        }
-
-        const existingAdmin = await User.findOne({ role: 'admin' });
-        if (existingAdmin) {
-            return res.status(409).json({
-                success: false,
-                message: 'Admin already exists'
-            });
         }
 
         if (!email || !password) {
@@ -55,7 +78,13 @@ exports.setupAdmin = async (req, res, next) => {
             role: 'admin'
         });
 
-        const token = signToken(adminUser._id);
+        let token;
+        try {
+            token = signToken(adminUser._id);
+        } catch (tokenError) {
+            await User.deleteOne({ _id: adminUser._id });
+            throw tokenError;
+        }
 
         res.status(201).json({
             success: true,
