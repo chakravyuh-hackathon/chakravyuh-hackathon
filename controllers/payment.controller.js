@@ -36,6 +36,7 @@ exports.createOrder = async (req, res, next) => {
             1013.86
         );
         const ieeeAmount = Number(process.env.PAYMENT_IEEE_AMOUNT || 811.86);
+
         if (!Number.isFinite(nonIeeeAmount) || nonIeeeAmount <= 0) {
             return res.status(500).json({
                 success: false,
@@ -128,8 +129,9 @@ exports.verifyPayment = async (req, res, next) => {
             });
         }
 
+        // 🔴 REQUIRED FIX: include email and teamMembers
         const registration = await Registration.findById(registrationId).select(
-            'registrationId fullName event isTeam teamName'
+            'registrationId fullName event isTeam teamName email teamMembers'
         );
 
         if (!registration) {
@@ -147,6 +149,7 @@ exports.verifyPayment = async (req, res, next) => {
         publicBaseUrl = publicBaseUrl
             .replace(/\$\{PORT\}|\$PORT/g, String(port))
             .replace(/\/+$/, '');
+
         const qrUrl = `${publicBaseUrl}/api/registrations/qr/${encodeURIComponent(registration.registrationId)}`;
         const qrCode = await generateQR(qrUrl);
 
@@ -172,7 +175,6 @@ exports.verifyPayment = async (req, res, next) => {
             });
         }
 
-        // Send confirmation email with QR code
         // Send confirmation email with QR code to all team members
         try {
             // Collect all emails (registrant + team members)
@@ -182,17 +184,18 @@ exports.verifyPayment = async (req, res, next) => {
             ];
 
             // Remove duplicates based on email
-            const uniqueRecipients = Array.from(new Map(recipients.map(item => [item.email, item])).values());
+            const uniqueRecipients = Array.from(
+                new Map(recipients.map(item => [item.email, item])).values()
+            );
 
             // Prepare QR code attachment
-            // Data URI format: data:image/png;base64,.....
             const base64Data = qrCode.split(';base64,').pop();
 
             const attachments = [{
                 filename: 'qrcode.png',
                 content: base64Data,
                 encoding: 'base64',
-                cid: 'qrcode' // Content-ID for embedding in the email template
+                cid: 'qrcode'
             }];
 
             setImmediate(async () => {
@@ -201,7 +204,7 @@ exports.verifyPayment = async (req, res, next) => {
                         uniqueRecipients.map((recipient) =>
                             sendEmail({
                                 to: recipient.email,
-                                subject: `Chakravyuh 2.0 - Payment Confirmed (${updatedRegistration.registrationId})`,
+                                subject: `Chakravyuh 2.0 - Registration Confirmed (${updatedRegistration.registrationId})`,
                                 template: 'paymentConfirmation',
                                 context: {
                                     fullName: recipient.name,
@@ -222,7 +225,6 @@ exports.verifyPayment = async (req, res, next) => {
 
         } catch (emailError) {
             console.error('Failed to send payment confirmation email:', emailError);
-            // Don't fail the payment verification if email fails
         }
 
         res.json({

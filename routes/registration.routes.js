@@ -104,7 +104,7 @@ router.get('/qr/:registrationId', async (req, res, next) => {
         }
 
         const registration = await Registration.findOne({ registrationId }).select(
-            'registrationId fullName event isTeam teamName status'
+            'registrationId fullName event isTeam teamName teamMembers status'
         );
 
         if (!registration) {
@@ -129,6 +129,26 @@ router.get('/qr/:registrationId', async (req, res, next) => {
         const teamBlock = registration.isTeam && registration.teamName
             ? `<div class="row"><div class="label">Team Name</div><div class="value">${safeTeamName}</div></div>`
             : '';
+
+        console.log('DEBUG - registration.isTeam:', registration.isTeam);
+        console.log('DEBUG - registration.teamMembers:', registration.teamMembers);
+        console.log('DEBUG - teamMembers length:', registration.teamMembers?.length);
+
+        const teamMembersBlock = registration.isTeam && Array.isArray(registration.teamMembers) && registration.teamMembers.length > 0
+            ? (() => {
+                console.log('DEBUG - Creating team members block for', registration.teamMembers.length, 'members');
+                return registration.teamMembers
+                    .map((member, index) => {
+                        const safeMemberName = escapeHtml(member?.name || '');
+                        console.log('DEBUG - Processing member', index + 1, ':', safeMemberName);
+                        return `<div class="row"><div class="label">Team Member ${index + 1}</div><div class="value">${safeMemberName}</div></div>`;
+                    })
+                    .join('');
+            })()
+            : (() => {
+                console.log('DEBUG - No team members to display');
+                return '';
+            })();
 
         const statusClass = (() => {
             const s = (registration.status || '').toString().toLowerCase();
@@ -236,7 +256,7 @@ router.get('/qr/:registrationId', async (req, res, next) => {
       .btnPrimary{background: linear-gradient(135deg, var(--brand1), var(--brand2)); color:#fff;}
       .btnGhost{background:#eef2ff; color:#2b3ea8;}
       .hint{margin-top:12px; font-size:12px; color: var(--muted);}
-      .footer{padding: 14px 18px 18px; color: rgba(255,255,255,0.85); font-size:12px; text-align:center;}
+      .footer{padding: 14px 18px 18px; color:black; font-size:12px; text-align:center;}
       @media (min-width: 620px){
         .grid{grid-template-columns: 1fr 1fr;}
       }
@@ -266,6 +286,7 @@ router.get('/qr/:registrationId', async (req, res, next) => {
             ${teamBlock}
             <div class="row"><div class="label">Name</div><div class="value">${safeFullName}</div></div>
             <div class="row"><div class="label">Event</div><div class="value">${safeEvent}</div></div>
+            ${teamMembersBlock}
           </div>
 
           <div class="actions">
