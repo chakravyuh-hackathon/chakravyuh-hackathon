@@ -194,10 +194,17 @@ exports.createRegistration = async (req, res, next) => {
         // Generate registration ID
         const registrationId = `CHK-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+        const requiredAmount = normalizedIeeeMember === 'yes' ? 1000 : 1200;
+
         // Create registration
         const registration = await Registration.create({
             ...req.body,
             registrationId,
+            payment: {
+                amount: requiredAmount,
+                currency: 'INR',
+                status: 'created'
+            },
             status: 'pending_payment',
             registeredAt: new Date()
         });

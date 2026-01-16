@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 
 // Load env vars
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create express app
 const app = express();

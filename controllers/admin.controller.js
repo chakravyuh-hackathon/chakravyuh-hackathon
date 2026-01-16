@@ -161,7 +161,7 @@ exports.getMe = async (req, res, next) => {
 exports.listRegistrations = async (req, res, next) => {
     try {
         const registrations = await Registration.find({})
-            .select('-ieeeMembershipCertificate.data')
+            .select('-ieeeMembershipCertificate.data -paymentScreenshot.data -payment.screenshot.data')
             .sort({ createdAt: -1 });
 
         const data = registrations.map(r => {
@@ -196,7 +196,7 @@ exports.getRegistrationById = async (req, res, next) => {
             });
         }
 
-        const registration = await Registration.findById(req.params.id).select('-ieeeMembershipCertificate.data');
+        const registration = await Registration.findById(req.params.id).select('-ieeeMembershipCertificate.data -paymentScreenshot.data -payment.screenshot.data');
         if (!registration) {
             return res.status(404).json({
                 success: false,

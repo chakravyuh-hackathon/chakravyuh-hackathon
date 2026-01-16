@@ -1,6 +1,9 @@
 const nodemailer = require('nodemailer');
 const emailTemplates = require('./emailTemplates');
 
+const EMAIL_USER = (process.env.EMAIL_USER || '').toString().trim();
+const EMAIL_PASS = (process.env.EMAIL_PASS || '').toString().replace(/\s+/g, '');
+
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: Number(process.env.EMAIL_PORT) || 587,
@@ -12,15 +15,15 @@ const transporter = nodemailer.createTransport({
     greetingTimeout: Number(process.env.EMAIL_GREETING_TIMEOUT_MS) || 10000,
     socketTimeout: Number(process.env.EMAIL_SOCKET_TIMEOUT_MS) || 20000,
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
     }
 });
 
 const sendEmail = async (options) => {
     // Check for placeholder credentials
-    if (process.env.EMAIL_USER === 'your-email@gmail.com' ||
-        process.env.EMAIL_PASS === 'your-app-specific-password') {
+    if (EMAIL_USER === 'your-email@gmail.com' ||
+        EMAIL_PASS === 'your-app-specific-password') {
         console.warn('\n\x1b[33m%s\x1b[0m', '⚠️  WARNING: You are using default placeholder email credentials!');
         console.warn('\x1b[36m%s\x1b[0m', 'To fix sending emails:');
         console.warn('1. Go to your Google Account > Security');
@@ -44,7 +47,7 @@ const sendEmail = async (options) => {
         }
 
         const mailOptions = {
-            from: `"Chakravyuh 2.0" <${process.env.EMAIL_USER}>`,
+            from: `"Chakravyuh 2.0" <${EMAIL_USER}>`,
             to: Array.isArray(to) ? to : [to],
             subject,
             html,

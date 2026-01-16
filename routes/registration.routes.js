@@ -1,7 +1,7 @@
 const express = require('express');
 const { createRegistration } = require('../controllers/registration.controller');
 const { protect, isAdmin } = require('../middleware/auth.middleware');
-const { createOrder, verifyPayment } = require('../controllers/payment.controller');
+const { submitUPIProof, viewPaymentScreenshot, finalApprove } = require('../controllers/payment.controller');
 const Registration = require('../models/Registration');
 const upload = require('../middleware/upload.middleware');
 const mongoose = require('mongoose');
@@ -36,7 +36,7 @@ router.get('/ieee-certificates', protect, isAdmin, async (req, res, next) => {
 router.get('/', protect, isAdmin, async (req, res, next) => {
     try {
         const registrations = await Registration.find({})
-            .select('-ieeeMembershipCertificate.data')
+            .select('-ieeeMembershipCertificate.data -paymentScreenshot.data -payment.screenshot.data')
             .sort({ createdAt: -1 });
 
         const data = registrations.map(r => {
@@ -62,37 +62,14 @@ router.get('/', protect, isAdmin, async (req, res, next) => {
     }
 });
 
-// Create payment order
-router.post(
-    '/:id/create-order',
-    express.json({ limit: '200mb' }),
-    express.urlencoded({ extended: true, limit: '200mb' }),
-    async (req, res, next) => {
-    try {
-        // Add registration ID to request body
-        req.body.registrationId = req.params.id;
-        await createOrder(req, res, next);
-    } catch (error) {
-        next(error);
-    }
-    }
-);
+// Submit manual UPI proof (UTR + screenshot)
+router.post('/:id/upi-proof', upload.single('paymentScreenshot'), submitUPIProof);
 
-// Verify payment
-router.post(
-    '/:id/verify-payment',
-    express.json({ limit: '200mb' }),
-    express.urlencoded({ extended: true, limit: '200mb' }),
-    async (req, res, next) => {
-    try {
-        // Add registration ID to request body
-        req.body.registrationId = req.params.id;
-        await verifyPayment(req, res, next);
-    } catch (error) {
-        next(error);
-    }
-    }
-);
+// View payment screenshot (Admin only)
+router.get('/:id/payment-screenshot', protect, isAdmin, viewPaymentScreenshot);
+
+// Final approve (Admin only)
+router.post('/:id/final-approve', protect, isAdmin, finalApprove);
 
 // Public QR scan page (shows registration info)
 router.get('/qr/:registrationId', async (req, res, next) => {
@@ -339,7 +316,7 @@ router.get('/:id', async (req, res, next) => {
                 message: 'Invalid registration id'
             });
         }
-        const registration = await Registration.findById(req.params.id).select('-ieeeMembershipCertificate.data');
+        const registration = await Registration.findById(req.params.id).select('-ieeeMembershipCertificate.data -paymentScreenshot.data -payment.screenshot.data');
         if (!registration) {
             return res.status(404).json({
                 success: false,

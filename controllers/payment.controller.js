@@ -1,242 +1,211 @@
-const razorpay = require('../utils/razorpay');
-const crypto = require('crypto');
+const mongoose = require('mongoose');
 const Registration = require('../models/Registration');
 const sendEmail = require('../utils/sendEmail');
 const generateQR = require('../utils/generateQR');
 
-// Create Razorpay order
-exports.createOrder = async (req, res, next) => {
+const getBackendPublicBaseUrl = () => {
+    const port = process.env.PORT || 5000;
+    let base = (process.env.BACKEND_PUBLIC_URL || `http://localhost:${port}`).toString();
+    return base.replace(/\$\{PORT\}|\$PORT/g, String(port)).replace(/\/+$/, '');
+};
+
+const normalizeUtr = (value) => String(value || '').replace(/\D/g, '').trim();
+
+/* ------------------ SUBMIT UPI PROOF ------------------ */
+exports.submitUPIProof = async (req, res, next) => {
     try {
-        const { registrationId, currency = 'INR' } = req.body;
+        const { id } = req.params;
 
-        if (!registrationId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Registration ID is required'
-            });
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid registration id' });
         }
 
-        // Verify registration exists and is pending payment
-        const registration = await Registration.findOne({
-            _id: registrationId,
-            status: 'pending_payment'
-        });
+        const utrNumber = normalizeUtr(req.body?.utrNumber);
+        if (!utrNumber || utrNumber.length !== 12) {
+            return res.status(400).json({ success: false, message: 'UTR must be 12 digits' });
+        }
 
+        if (!req.file?.buffer || !req.file?.mimetype) {
+            return res.status(400).json({ success: false, message: 'Payment screenshot required' });
+        }
+
+        const registration = await Registration.findById(id);
         if (!registration) {
-            return res.status(404).json({
-                success: false,
-                message: 'Registration not found or payment already processed'
-            });
+            return res.status(404).json({ success: false, message: 'Registration not found' });
         }
 
-        const isIeeeMember = (registration.ieeeMember || 'no').toString().toLowerCase() === 'yes';
-        const nonIeeeAmount = Number(
-            process.env.PAYMENT_NON_IEEE_AMOUNT ||
-            process.env.PAYMENT_BASE_AMOUNT ||
-            1013.86
-        );
-        const ieeeAmount = Number(process.env.PAYMENT_IEEE_AMOUNT || 811.86);
-
-        if (!Number.isFinite(nonIeeeAmount) || nonIeeeAmount <= 0) {
-            return res.status(500).json({
-                success: false,
-                message: 'Invalid payment configuration'
-            });
+        if (registration.status === 'confirmed') {
+            return res.json({ success: true, message: 'Already confirmed' });
         }
 
-        if (!Number.isFinite(ieeeAmount) || ieeeAmount <= 0) {
-            return res.status(500).json({
-                success: false,
-                message: 'Invalid payment configuration'
-            });
-        }
-
-        const originalAmount = nonIeeeAmount;
-        const finalAmount = isIeeeMember ? ieeeAmount : nonIeeeAmount;
-        const safeDiscountPercent = isIeeeMember
-            ? Number(((1 - finalAmount / originalAmount) * 100).toFixed(2))
-            : 0;
-
-        const options = {
-            amount: Math.round(finalAmount * 100), // Convert to paise
-            currency,
-            receipt: `chk_${registrationId}`,
-            payment_capture: 1,
-            notes: {
-                registrationId: registration._id.toString(),
-                event: registration.event
+        registration.utrNumber = utrNumber;
+        registration.payment = {
+            ...registration.payment,
+            utrNumber,
+            screenshot: {
+                fileName: req.file.originalname,
+                contentType: req.file.mimetype,
+                data: req.file.buffer
             }
         };
+        registration.status = 'under_review';
 
-        const order = await razorpay.orders.create(options);
+        await registration.save();
 
-        // Update registration with order ID
-        await Registration.findByIdAndUpdate(registrationId, {
-            $set: {
-                payment: {
-                    orderId: order.id,
-                    amount: finalAmount,
-                    originalAmount: originalAmount,
-                    discountPercent: safeDiscountPercent,
-                    currency: currency,
-                    status: 'created'
-                }
-            }
-        });
-
-        res.json({
+        return res.json({
             success: true,
-            order: {
-                id: order.id,
-                amount: order.amount,
-                currency: order.currency,
-                receipt: order.receipt
-            }
+            message: 'Payment proof submitted successfully'
         });
-    } catch (error) {
-        next(error);
+    } catch (err) {
+        next(err);
     }
 };
 
-// Verify payment and update registration
-exports.verifyPayment = async (req, res, next) => {
-    const {
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature,
-        registrationId
-    } = req.body;
-
+/* ------------------ VIEW SCREENSHOT ------------------ */
+exports.viewPaymentScreenshot = async (req, res, next) => {
     try {
-        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !registrationId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Missing required payment verification data'
-            });
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid id' });
         }
 
-        // Verify payment signature
-        const sign = `${razorpay_order_id}|${razorpay_payment_id}`;
-        const expectedSign = crypto
-            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-            .update(sign)
-            .digest('hex');
-
-        if (razorpay_signature !== expectedSign) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid payment signature'
-            });
+        const registration = await Registration.findById(id);
+        if (!registration?.payment?.screenshot?.data) {
+            return res.status(404).json({ success: false, message: 'Screenshot not found' });
         }
 
-        // 🔴 REQUIRED FIX: include email and teamMembers
-        const registration = await Registration.findById(registrationId).select(
-            'registrationId fullName event isTeam teamName email teamMembers'
-        );
+        const s = registration.payment.screenshot;
+        res.setHeader('Content-Type', s.contentType);
+        res.setHeader('Content-Disposition', `inline; filename="${s.fileName}"`);
+        res.send(s.data);
+    } catch (err) {
+        next(err);
+    }
+};
 
+/* ------------------ FINAL ADMIN APPROVAL ------------------ */
+exports.finalApprove = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid registration id' });
+        }
+
+        const registration = await Registration.findById(id);
         if (!registration) {
-            return res.status(404).json({
-                success: false,
-                message: 'Registration not found'
-            });
+            return res.status(404).json({ success: false, message: 'Registration not found' });
         }
 
-        // Generate QR code for the registration
-        const port = process.env.PORT || 5000;
-        let publicBaseUrl =
-            process.env.BACKEND_PUBLIC_URL ||
-            `http://localhost:${port}`;
-        publicBaseUrl = publicBaseUrl
-            .replace(/\$\{PORT\}|\$PORT/g, String(port))
-            .replace(/\/+$/, '');
+        if (registration.status !== 'under_review') {
+            return res.status(400).json({ success: false, message: 'Not under review' });
+        }
 
-        const qrUrl = `${publicBaseUrl}/api/registrations/qr/${encodeURIComponent(registration.registrationId)}`;
+        /* Generate QR */
+        const baseUrl = getBackendPublicBaseUrl();
+        const qrUrl = `${baseUrl}/api/registrations/qr/${registration.registrationId}`;
         const qrCode = await generateQR(qrUrl);
 
-        // Update registration with payment and QR code
-        const updatedRegistration = await Registration.findByIdAndUpdate(
-            registrationId,
-            {
-                $set: {
-                    'payment.paymentId': razorpay_payment_id,
-                    'payment.status': 'captured',
-                    'payment.paidAt': new Date(),
-                    status: 'confirmed',
-                    qrCode: qrCode
-                }
-            },
-            { new: true }
+        /* Update payment */
+        registration.payment = {
+            ...registration.payment,
+            paymentId: registration.payment?.utrNumber || 'UPI',
+            status: 'captured',
+            paidAt: new Date()
+        };
+        registration.status = 'confirmed';
+        registration.qrCode = qrCode;
+
+        await registration.save();
+
+        /* -------- SEND EMAIL (ASYNC) -------- */
+        const recipients = [
+            { name: registration.fullName, email: registration.email },
+            ...(registration.teamMembers || [])
+        ].filter(r => r?.email);
+
+        const EMAIL_USER = (process.env.EMAIL_USER || '').toString().trim();
+        const EMAIL_PASS = (process.env.EMAIL_PASS || '').toString().replace(/\s+/g, '');
+        const emailConfigured = Boolean(
+            EMAIL_USER &&
+            EMAIL_PASS &&
+            EMAIL_USER !== 'your-email@gmail.com' &&
+            EMAIL_PASS !== 'your-app-specific-password'
         );
 
-        if (!updatedRegistration) {
-            return res.status(404).json({
-                success: false,
-                message: 'Registration not found'
-            });
-        }
+        const emailQueued = Boolean(emailConfigured && recipients.length);
+        const emailRecipients = recipients.length;
 
-        // Send confirmation email with QR code to all team members
-        try {
-            // Collect all emails (registrant + team members)
-            const recipients = [
-                { name: updatedRegistration.fullName, email: updatedRegistration.email },
-                ...(updatedRegistration.teamMembers || []).map(m => ({ name: m.name, email: m.email }))
-            ];
+        const frontendBaseUrl = (() => {
+            const envValue = (process.env.FRONTEND_URL || '').toString();
+            const first = envValue
+                .split(',')
+                .map((v) => v.trim())
+                .filter(Boolean)[0];
+            return (first || 'http://localhost:3000').replace(/\/+$/, '');
+        })();
 
-            // Remove duplicates based on email
-            const uniqueRecipients = Array.from(
-                new Map(recipients.map(item => [item.email, item])).values()
-            );
+        const ticketUrl = `${frontendBaseUrl}/registration/success?id=${encodeURIComponent(
+            registration._id
+        )}`;
 
-            // Prepare QR code attachment
-            const base64Data = qrCode.split(';base64,').pop();
+        // Respond immediately so the admin UI is fast and Excel can be generated instantly.
+        res.json({
+            success: true,
+            message: 'Payment approved',
+            data: {
+                registrationId: registration.registrationId,
+                status: 'confirmed',
+                qrCode,
+                emailQueued,
+                emailRecipients
+            }
+        });
 
-            const attachments = [{
-                filename: 'qrcode.png',
-                content: base64Data,
-                encoding: 'base64',
-                cid: 'qrcode'
-            }];
+        if (emailQueued) {
+            const to = recipients.map(r => r.email);
+            const qrBase64 = typeof qrCode === 'string' && qrCode.includes('base64,')
+                ? qrCode.split('base64,')[1]
+                : qrCode;
 
             setImmediate(async () => {
                 try {
-                    await Promise.allSettled(
-                        uniqueRecipients.map((recipient) =>
-                            sendEmail({
-                                to: recipient.email,
-                                subject: `Chakravyuh 2.0 - Registration Confirmed (${updatedRegistration.registrationId})`,
-                                template: 'paymentConfirmation',
-                                context: {
-                                    fullName: recipient.name,
-                                    event: updatedRegistration.event,
-                                    registrationId: updatedRegistration.registrationId,
-                                    teamName: updatedRegistration.isTeam ? (updatedRegistration.teamName || '') : '',
-                                    paymentId: razorpay_payment_id,
-                                    qrCode: 'cid:qrcode'
-                                },
-                                attachments
-                            })
-                        )
-                    );
-                } catch (emailError) {
-                    console.error('Failed to send payment confirmation email:', emailError);
+                    await sendEmail({
+                        to,
+                        subject: `Chakravyuh 2.0 - Registration Confirmed`,
+                        template: 'paymentConfirmation',
+                        context: {
+                            fullName: registration.isTeam
+                                ? registration.teamName || registration.fullName
+                                : registration.fullName,
+                            teamName: registration.isTeam ? (registration.teamName || '') : '',
+                            event: registration.event,
+                            registrationId: registration.registrationId,
+                            paymentId: registration.payment.paymentId,
+                            qrCode: 'cid:qrcode',
+                            ticketUrl
+                        },
+                        attachments: [
+                            {
+                                filename: 'qrcode.png',
+                                content: qrBase64,
+                                encoding: 'base64',
+                                cid: 'qrcode'
+                            }
+                        ]
+                    });
+                } catch (emailErr) {
+                    console.error('Payment confirmation email failed:', emailErr?.message || emailErr);
                 }
             });
-
-        } catch (emailError) {
-            console.error('Failed to send payment confirmation email:', emailError);
         }
 
-        res.json({
-            success: true,
-            message: 'Payment verified successfully',
-            data: {
-                registrationId: updatedRegistration._id,
-                status: 'confirmed',
-                qrCode: qrCode
-            }
-        });
-    } catch (error) {
-        next(error);
+        return;
+
+    } catch (err) {
+        next(err);
     }
 };
+
+exports.adminApprovePayment = exports.finalApprove;

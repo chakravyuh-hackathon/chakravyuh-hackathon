@@ -6,6 +6,12 @@ const teamMemberSchema = new mongoose.Schema({
   phone: { type: String, required: true }
 }, { _id: false });
 
+ const paymentScreenshotSchema = new mongoose.Schema({
+  fileName: String,
+  contentType: String,
+  data: Buffer
+ }, { _id: false });
+
 const paymentSchema = new mongoose.Schema({
   orderId: String,
   paymentId: String,
@@ -14,6 +20,8 @@ const paymentSchema = new mongoose.Schema({
   discountPercent: Number,
   currency: { type: String, default: 'INR' },
   status: { type: String, enum: ['created', 'captured', 'failed'], default: 'created' },
+  utrNumber: String,
+  screenshot: paymentScreenshotSchema,
   paidAt: Date
 }, { _id: false });
 
@@ -41,11 +49,13 @@ const registrationSchema = new mongoose.Schema({
   teamMembers: [teamMemberSchema],
   status: {
     type: String,
-    enum: ['pending_payment', 'confirmed', 'cancelled'],
+    enum: ['pending_payment', 'under_review', 'confirmed', 'cancelled'],
     default: 'pending_payment'
   },
   qrCode: String,
   payment: paymentSchema,
+  utrNumber: String,
+  paymentScreenshot: paymentScreenshotSchema,
   registeredAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 

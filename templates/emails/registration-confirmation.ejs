@@ -40,9 +40,7 @@
   ">
 
     <p style="font-size: 15px; color: #333;">
-      Hello <strong>
-        <%= fullName %>
-      </strong>,
+      Hello <strong><%= fullName %></strong>,
     </p>
 
     <p style="
@@ -51,13 +49,11 @@
       line-height: 1.6;
     ">
       Thank you for registering for
-      <strong style="color: #4a6cf7;">
-        <%= event %>
-      </strong>
+      <strong style="color: #4a6cf7;"><%= event %></strong>
       at <strong>Chakravyuh 2.0</strong>.
     </p>
 
-    <!-- Registration Details Card -->
+    <!-- Registration Details -->
     <div style="
       background-color: #f9fafc;
       padding: 18px;
@@ -77,48 +73,84 @@
       </h3>
 
       <p style="margin: 6px 0; font-size: 14px;">
-        <strong>Registration ID:</strong>
-        <%= registrationId %>
+        <strong>Registration ID:</strong> <%= registrationId %>
       </p>
       <p style="margin: 6px 0; font-size: 14px;">
-        <strong>Event:</strong>
-        <%= event %>
+        <strong>Event:</strong> <%= event %>
       </p>
       <p style="margin: 6px 0; font-size: 14px;">
-        <strong>Date:</strong>
-        <%= new Date().toLocaleDateString() %>
+        <strong>Date:</strong> <%= new Date().toLocaleDateString() %>
       </p>
     </div>
 
-    <!-- Payment Section -->
-    <% if (paymentRequired && paymentLink) { %>
-      <div style="
-        text-align: center;
-        margin: 30px 0 20px;
+    <!-- Payment Guidelines -->
+    <% if (paymentRequired) { %>
+    <div style="
+      background-color: #fff8f2;
+      border: 1px solid #ffd6b3;
+      padding: 18px;
+      border-radius: 8px;
+      margin-top: 25px;
+    ">
+      <h3 style="
+        margin-top: 0;
+        font-size: 16px;
+        color: #d35400;
       ">
-     <a href="<%= paymentLink %>" style="
-            display: inline-block;
-            padding: 12px 26px;
-            background: linear-gradient(135deg, #4a6cf7, #6f8cff);
-            color: #ffffff;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(74,108,247,0.4);
-          ">
-          💳 Complete Payment
-        </a>
-      </div>
+        💡 Payment Guidelines
+      </h3>
+
+      <ul style="
+        padding-left: 18px;
+        margin: 10px 0;
+        font-size: 14px;
+        color: #444;
+        line-height: 1.6;
+      ">
+        <li>Please complete the payment using the official payment link shared on the website or WhatsApp.</li>
+        <li>Ensure that you enter the correct <strong>Registration ID</strong> during payment.</li>
+        <li>Do not refresh or close the payment page until the transaction is completed.</li>
+        <li>In case of payment failure, wait for a few minutes before retrying with <strong>new email address</strong>.</li>
+      </ul>
+    </div>
+
+    <!-- Effectiveness Section -->
+    <div style="
+      background-color: #f2f7ff;
+      border: 1px solid #d6e4ff;
+      padding: 18px;
+      border-radius: 8px;
+      margin-top: 18px;
+    ">
+      <h3 style="
+        margin-top: 0;
+        font-size: 16px;
+        color: #2f5bd5;
+      ">
+        🚀 Why Following These Guidelines Matters
+      </h3>
 
       <p style="
         font-size: 14px;
-        color: #b00020;
-        text-align: center;
+        color: #444;
+        line-height: 1.6;
+        margin-bottom: 0;
       ">
-        Your registration will be fully confirmed after payment is completed.
+        Following the above payment guidelines helps us verify your transaction quickly,
+        avoid delays in confirmation, and ensure your participation in Chakravyuh 2.0
+        is processed smoothly and without errors.
       </p>
-      <% } %>
+    </div>
+
+    <p style="
+      font-size: 14px;
+      color: #b00020;
+      text-align: center;
+      margin-top: 18px;
+    ">
+      Your registration will be fully confirmed only after successful payment verification.
+    </p>
+    <% } %>
 
     <p style="
       font-size: 14px;
@@ -126,21 +158,13 @@
       margin-top: 25px;
     ">
       If you have any questions, feel free to contact us at
-      <a href="mailto:chakravyuh@sveri.ac.in" style="
-      color: #4a6cf7;
-      text-decoration: none;
-      font-weight: 600;
-    ">
-      chakravyuh@sveri.ac.in
-    </a>
-    or call us at
-    <a href="tel:8459558948" style="
-      color: #4a6cf7;
-      text-decoration: none;
-      font-weight: 600;
-    ">
-      8459558948
-    </a>
+      <a href="mailto:chakravyuh@sveri.ac.in" style="color: #4a6cf7; text-decoration: none; font-weight: 600;">
+        chakravyuh@sveri.ac.in
+      </a>
+      or call us at
+      <a href="tel:8669233747" style="color: #4a6cf7; text-decoration: none; font-weight: 600;">
+        8669233747
+      </a>
     </p>
 
     <p style="font-size: 14px; color: #444;">
