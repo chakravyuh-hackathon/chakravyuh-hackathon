@@ -310,19 +310,33 @@ router.get('/qr/:registrationId', async (req, res, next) => {
 // Get registration by ID
 router.get('/:id', async (req, res, next) => {
     try {
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        const key = (req.params.id || '').toString().trim();
+
+        if (!key) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid registration id'
             });
         }
-        const registration = await Registration.findById(req.params.id).select('-ieeeMembershipCertificate.data -paymentScreenshot.data -payment.screenshot.data');
+
+        const projection = '-ieeeMembershipCertificate.data -paymentScreenshot.data -payment.screenshot.data';
+
+        let registration = null;
+        if (mongoose.Types.ObjectId.isValid(key)) {
+            registration = await Registration.findById(key).select(projection);
+        }
+
+        if (!registration) {
+            registration = await Registration.findOne({ registrationId: key }).select(projection);
+        }
+
         if (!registration) {
             return res.status(404).json({
                 success: false,
                 message: 'Registration not found'
             });
         }
+
         res.json({ success: true, data: registration });
     } catch (error) {
         next(error);
@@ -332,7 +346,15 @@ router.get('/:id', async (req, res, next) => {
 // View/download IEEE membership certificate
 router.get('/:id/ieee-certificate', protect, isAdmin, async (req, res, next) => {
     try {
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        const key = (req.params.id || '').toString().trim();
+
+        if (!key) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid registration id'
+            });
+        }
+        if (!mongoose.Types.ObjectId.isValid(key)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid registration id'

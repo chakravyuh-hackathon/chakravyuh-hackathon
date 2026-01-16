@@ -147,7 +147,7 @@ exports.finalApprove = async (req, res, next) => {
         })();
 
         const ticketUrl = `${frontendBaseUrl}/registration/success?id=${encodeURIComponent(
-            registration._id
+            registration.registrationId
         )}`;
 
         // Respond immediately so the admin UI is fast and Excel can be generated instantly.
