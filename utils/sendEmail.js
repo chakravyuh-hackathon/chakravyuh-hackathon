@@ -4,6 +4,19 @@ const emailTemplates = require('./emailTemplates');
 const EMAIL_USER = (process.env.EMAIL_USER || '').toString().trim();
 const EMAIL_PASS = (process.env.EMAIL_PASS || '').toString().replace(/\s+/g, '');
 
+const isPlaceholderCredentials = (user, pass) => {
+    const u = (user || '').toString().trim();
+    const p = (pass || '').toString().trim();
+    return (
+        !u ||
+        !p ||
+        u === 'your-email@gmail.com' ||
+        u === 'your_email@gmail.com' ||
+        p === 'your-app-specific-password' ||
+        p === 'your_email_app_password'
+    );
+};
+
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: Number(process.env.EMAIL_PORT) || 587,
@@ -20,10 +33,31 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+let warmupPromise = null;
+
+const warmup = async () => {
+    if (isPlaceholderCredentials(EMAIL_USER, EMAIL_PASS)) {
+        return null;
+    }
+
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        return null;
+    }
+
+    if (warmupPromise) return warmupPromise;
+
+    warmupPromise = transporter.verify().catch((err) => {
+        warmupPromise = null;
+        console.error('Email transporter warmup failed:', err?.message || err);
+        return null;
+    });
+
+    return warmupPromise;
+};
+
 const sendEmail = async (options) => {
     // Check for placeholder credentials
-    if (EMAIL_USER === 'your-email@gmail.com' ||
-        EMAIL_PASS === 'your-app-specific-password') {
+    if (isPlaceholderCredentials(EMAIL_USER, EMAIL_PASS)) {
         console.warn('\n\x1b[33m%s\x1b[0m', '⚠️  WARNING: You are using default placeholder email credentials!');
         console.warn('\x1b[36m%s\x1b[0m', 'To fix sending emails:');
         console.warn('1. Go to your Google Account > Security');
@@ -34,7 +68,7 @@ const sendEmail = async (options) => {
     }
 
     try {
-        const { to, subject, template, context, attachments = [] } = options;
+        const { to, cc, bcc, subject, template, context, attachments = [] } = options;
 
         // If template is provided, render it
         let html = options.html;
@@ -49,6 +83,8 @@ const sendEmail = async (options) => {
         const mailOptions = {
             from: `"Chakravyuh 2.0" <${EMAIL_USER}>`,
             to: Array.isArray(to) ? to : [to],
+            cc: cc ? (Array.isArray(cc) ? cc : [cc]) : undefined,
+            bcc: bcc ? (Array.isArray(bcc) ? bcc : [bcc]) : undefined,
             subject,
             html,
             attachments: [...attachments]
@@ -66,5 +102,7 @@ const sendEmail = async (options) => {
         return null;
     }
 };
+
+sendEmail.warmup = warmup;
 
 module.exports = sendEmail;

@@ -7,6 +7,9 @@ const path = require('path');
 // Load env vars
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+const emailTemplates = require('./utils/emailTemplates');
+const sendEmail = require('./utils/sendEmail');
+
 // Create express app
 const app = express();
 
@@ -174,6 +177,19 @@ if (require.main === module) {
             app.listen(PORT, () => {
                 console.log(`Server running on port ${PORT}`);
                 console.log('MongoDB connected and ready');
+
+                setImmediate(() => {
+                    Promise.allSettled([
+                        typeof emailTemplates.preloadTemplates === 'function'
+                            ? emailTemplates.preloadTemplates()
+                            : Promise.resolve(),
+                        typeof sendEmail.warmup === 'function'
+                            ? sendEmail.warmup()
+                            : Promise.resolve()
+                    ]).catch(() => {
+                        // ignore
+                    });
+                });
             });
         })
         .catch(err => {
@@ -185,6 +201,19 @@ if (require.main === module) {
             const PORT = process.env.PORT || 5000;
             app.listen(PORT, () => {
                 console.log(`Server running on port ${PORT} (MongoDB disconnected)`);
+
+                setImmediate(() => {
+                    Promise.allSettled([
+                        typeof emailTemplates.preloadTemplates === 'function'
+                            ? emailTemplates.preloadTemplates()
+                            : Promise.resolve(),
+                        typeof sendEmail.warmup === 'function'
+                            ? sendEmail.warmup()
+                            : Promise.resolve()
+                    ]).catch(() => {
+                        // ignore
+                    });
+                });
             });
         });
 }

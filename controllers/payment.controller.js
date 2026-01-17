@@ -120,10 +120,19 @@ exports.finalApprove = async (req, res, next) => {
         await registration.save();
 
         /* -------- SEND EMAIL (ASYNC) -------- */
-        const recipients = [
-            { name: registration.fullName, email: registration.email },
-            ...(registration.teamMembers || [])
-        ].filter(r => r?.email);
+        const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+        const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+
+        const leaderEmail = normalizeEmail(registration.email);
+        const memberEmails = (registration.teamMembers || [])
+            .map((m) => normalizeEmail(m?.email))
+            .filter(Boolean);
+
+        const uniqueEmails = Array.from(
+            new Set([leaderEmail, ...memberEmails].filter((e) => e && isValidEmail(e)))
+        );
+
+        const recipients = uniqueEmails;
 
         const EMAIL_USER = (process.env.EMAIL_USER || '').toString().trim();
         const EMAIL_PASS = (process.env.EMAIL_PASS || '').toString().replace(/\s+/g, '');
@@ -131,7 +140,9 @@ exports.finalApprove = async (req, res, next) => {
             EMAIL_USER &&
             EMAIL_PASS &&
             EMAIL_USER !== 'your-email@gmail.com' &&
-            EMAIL_PASS !== 'your-app-specific-password'
+            EMAIL_USER !== 'your_email@gmail.com' &&
+            EMAIL_PASS !== 'your-app-specific-password' &&
+            EMAIL_PASS !== 'your_email_app_password'
         );
 
         const emailQueued = Boolean(emailConfigured && recipients.length);
@@ -164,7 +175,8 @@ exports.finalApprove = async (req, res, next) => {
         });
 
         if (emailQueued) {
-            const to = recipients.map(r => r.email);
+            const to = leaderEmail && isValidEmail(leaderEmail) ? leaderEmail : recipients[0];
+            const bcc = recipients.filter((email) => email !== to);
             const qrBase64 = typeof qrCode === 'string' && qrCode.includes('base64,')
                 ? qrCode.split('base64,')[1]
                 : qrCode;
@@ -173,6 +185,7 @@ exports.finalApprove = async (req, res, next) => {
                 try {
                     await sendEmail({
                         to,
+                        bcc: bcc.length ? bcc : undefined,
                         subject: `Chakravyuh 2.0 - Registration Confirmed`,
                         template: 'paymentConfirmation',
                         context: {

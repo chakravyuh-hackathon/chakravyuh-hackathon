@@ -4,6 +4,22 @@ const fs = require('fs').promises;
 
 const templateCache = new Map();
 
+const preloadTemplates = async () => {
+    const templateNames = ['registration-confirmation', 'payment-confirmation'];
+    const results = await Promise.allSettled(
+        templateNames.map(async (templateName) => {
+            const templatePath = path.join(__dirname, '..', 'templates', 'emails', `${templateName}.ejs`);
+            if (templateCache.has(templatePath)) return;
+            const template = await fs.readFile(templatePath, 'utf-8');
+            templateCache.set(templatePath, template);
+        })
+    );
+    const rejected = results.find((r) => r.status === 'rejected');
+    if (rejected) {
+        throw rejected.reason;
+    }
+};
+
 const loadTemplate = async (templateName, data) => {
     try {
         const templatePath = path.join(__dirname, '..', 'templates', 'emails', `${templateName}.ejs`);
@@ -21,5 +37,6 @@ const loadTemplate = async (templateName, data) => {
 
 module.exports = {
     registrationConfirmation: (data) => loadTemplate('registration-confirmation', data),
-    paymentConfirmation: (data) => loadTemplate('payment-confirmation', data)
+    paymentConfirmation: (data) => loadTemplate('payment-confirmation', data),
+    preloadTemplates
 };
